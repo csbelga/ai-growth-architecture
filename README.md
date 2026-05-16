@@ -94,4 +94,4 @@ Em produção desde 2025, atendendo cliente high-ticket em imobiliário de luxo 
 
 ## Contato
 
-Para conversa técnica, csbelga em gmail ou LinkedIn em https://www.linkedin.com/in/christianbelga
+Para conversa técnica, csbelga em gmail ou LinkedIn em https://www.linkedin.com/in/christian-belga-a1146a75
