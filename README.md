@@ -1,97 +1,33 @@
-# Agente autônomo de growth marketing, arquitetura conceitual
+Sistema de IA para growth: arquitetura conceitual (2ª geração)
 
-Sistema proprietário em produção que executa diagnóstico de mídia paga, auditoria de tracking, lead scoring preditivo e auditoria de SEO no formato 2026 (otimização para resposta de mecanismo de IA), de forma autônoma e contínua, vinte e quatro horas por dia.
+Sistema proprietário em produção que executa growth de ponta a ponta para negócios high-ticket: diagnóstico de conta e funil, arquitetura de funil, estratégia de conteúdo, copy, tracking e preparação de decisão de investimento. Este repositório documenta a arquitetura conceitual e as decisões de engenharia. O código é fechado por operar clientes reais.
 
-Este repositório contém a arquitetura conceitual do sistema, sem código fonte, porque a implementação é proprietária e está atendendo cliente em produção. O que está aqui é suficiente para explicar como o sistema pensa, decide e age, em nível compatível com conversa técnica de Head de Growth ou Lead de AI Engineering.
+Por que uma segunda geração
 
-## Para que serve
+A primeira geração, documentada anteriormente aqui, era um agente 24/7 em VPS: orquestração de três modelos, memória vetorial, pipelines agendados. Uma auditoria interna de resultados concluiu que boa parte do pipeline rodava sem produzir decisão melhor. Infraestrutura ocupada não é inteligência. O sistema foi desativado e reconstruído do zero sobre um princípio diferente: menos infraestrutura, mais verificação.
 
-Substituir o ciclo manual de gestor de tráfego que, em qualquer agência ou time interno de growth, consome de quatro a oito horas por dia em tarefas que são, no fundo, padronizáveis. Auditar pixel, conferir evento, ler relatório, anotar anomalia, sugerir teste, redigir relatório executivo. Tudo isso o agente faz sozinho, com qualidade igual ou superior ao analista júnior, e em janela contínua em vez de janela diária.
+Princípios da arquitetura atual
 
-## Arquitetura de alto nível
+Capacidades versionadas. Cada capacidade de growth (arquitetura de funil, conteúdo, copy, tracking, auditoria) é um método explícito, versionado em Git, com fronteiras definidas contra as capacidades vizinhas. O sistema não é um prompt gigante: é uma malha de capacidades com roteamento entre elas.
 
-```mermaid
-flowchart TB
-    subgraph Inputs[Entradas de dados]
-        A1[Meta Ads API]
-        A2[Google Ads API]
-        A3[GA4 Data API]
-        A4[GTM Container]
-        A5[CRM exportado]
-        A6[Search Console]
-    end
+Qualidade por gates binários. Nenhum entregável sai sem passar por um gate de verificação binário, específico da capacidade. Critério de qualidade vira item objetivo que passa ou reprova, não opinião.
 
-    subgraph Core[Núcleo do agente]
-        B1[Orquestrador]
-        B2[Memória vetorial]
-        B3[Roteador de modelo]
-    end
+Execução e auditoria independentes. Quem constrói não é quem verifica. Mudanças relevantes passam por um executor cego aos critérios de aceite e um auditor independente que valida contra a especificação. Inconsistência bloqueia a entrega.
 
-    subgraph Models[Modelos de linguagem]
-        C1[Claude Sonnet]
-        C2[GPT-4 Turbo]
-        C3[Gemini Pro]
-    end
+Conhecimento de domínio é dado, não código. O método é agnóstico de setor. O que muda por nicho e por cliente entra como configuração. Trocar o setor não muda a arquitetura.
 
-    subgraph Tasks[Tarefas autônomas]
-        D1[Auditoria de tracking]
-        D2[Diagnóstico de mídia]
-        D3[Lead scoring]
-        D4[Auditoria de SEO AEO]
-        D5[Relatório executivo]
-    end
+Procedência epistêmica obrigatória. Toda afirmação sobre jornada ou comportamento de cliente carrega marcador de hipótese ou de dado medido. O sistema não afirma o que não mediu.
 
-    subgraph Outputs[Saídas]
-        E1[Alerta operacional]
-        E2[Relatório markdown]
-        E3[Atualização de CRM]
-        E4[Dashboard atualizado]
-    end
+Autonomia calibrada por reversibilidade. O sistema pesquisa, constrói e se autoverifica sozinho no que é interno e reversível. Ações externas irreversíveis (gastar verba, publicar, contatar terceiros) exigem aprovação humana, com transparência de processo, achados e custo em cada entrega.
 
-    Inputs --> B1
-    B1 <--> B2
-    B1 --> B3
-    B3 --> C1
-    B3 --> C2
-    B3 --> C3
-    C1 --> Tasks
-    C2 --> Tasks
-    C3 --> Tasks
-    Tasks --> Outputs
-```
+Validação contra o real. Nenhuma capacidade é considerada estável até ser validada em cliente real. Método que só funciona em teoria é hipótese, não capacidade.
 
-## Decisões arquiteturais
+Stack
 
-A escolha de orquestrar três modelos diferentes (Claude, GPT, Gemini), em vez de padronizar em um só, foi consciente. Cada modelo tem fronteira de competência diferente. Claude é melhor para escrita de relatório executivo e raciocínio em cadeia longa. GPT é melhor para extração estruturada de dados de texto não estruturado e chamada de função. Gemini é melhor para processamento de contexto muito longo (mais de cento e cinquenta mil tokens) e custo por token. O roteador decide qual modelo chamar com base no tipo da tarefa, e o custo total de operação fica entre quarenta e sessenta por cento mais baixo do que se o sistema rodasse tudo no melhor modelo de cada provedor.
+Claude (Anthropic) via Claude Code · MCP (Model Context Protocol) para integrações com Meta, Google, Drive e ferramentas de SEO · Git como registro de decisão · PowerShell e Python na infraestrutura local.
 
-A memória vetorial usa Chroma como banco de dados, escolhido em vez de Pinecone porque o volume atual de embedding (em torno de quatrocentos mil vetores) não justifica custo de SaaS no estágio atual. A migração para Pinecone ou Weaviate está prevista para o momento em que o volume cruzar dois milhões de vetores, que é onde o custo operacional de Chroma em VPS dedicada começa a ficar maior do que o custo do SaaS equivalente.
+Status
 
-O sistema roda em VPS Linux dedicada com dezesseis gigabytes de RAM, quatro vCPUs e SSD NVMe. Não usa Docker em produção porque o overhead de contêiner não compensa para um único serviço de uso interno, e a manutenção de imagem de contêiner adicionaria fricção sem ganho equivalente.
+Em produção, operando clientes pagantes em verticais high-ticket, com cada cliente novo validando e refinando capacidades existentes.
 
-## Casos de uso em produção
-
-Auditoria de tracking. O agente conecta no container de GTM, lê todas as tags, dispara o site em modo de preview e confirma que cada evento de conversão crítico está disparando para GA4 e para Meta CAPI corretamente. Quando detecta evento quebrado, gera issue com diagnóstico técnico e recomendação de correção, no nível "tag X está duplicando porque o trigger Y inclui condição Z redundante".
-
-Diagnóstico de mídia. Lê todas as campanhas ativas em Meta Ads e Google Ads, identifica padrões de fadiga criativa (CTR caindo, frequência subindo, CPM aumentando), correlaciona com janela temporal e gera recomendação de teste, com hipótese causal e proposta de criativo substituto.
-
-Lead scoring preditivo. Treina modelo de regressão logística com histórico do CRM do cliente, gera score de probabilidade de conversão por lead que entra no funil, e atualiza o registro no CRM em tempo quase real para que o time comercial priorize lead alto.
-
-Auditoria de SEO formato AEO. Conecta no Google Search Console e em ferramentas de monitoramento de menção em ChatGPT, Claude e Perplexity, identifica em quais respostas de IA a marca está sendo citada e em quais não, e gera recomendação editorial para preencher gap.
-
-Relatório executivo. Toda segunda-feira de manhã, o agente compila tudo o que aconteceu na semana anterior em um documento de duas a quatro páginas com narrativa, decisões tomadas, decisões pendentes e recomendação acionável para a próxima semana. Esse documento entra diretamente na reunião de comitê semanal do cliente.
-
-## Stack
-
-Linguagem principal Python três ponto onze. Orquestração de modelos via APIs oficiais de Anthropic, OpenAI e Google. Banco vetorial Chroma. Banco relacional PostgreSQL para logs e estado. Servidor de aplicação FastAPI. Agendador de tarefas APScheduler em processo único. Frontend de monitoramento interno em Streamlit.
-
-Integrações de dados: Meta Marketing API, Google Ads API, GA4 Data API, Google Search Console API, GTM API, integração de CRM via webhook genérico.
-
-Observabilidade: logs estruturados em JSON, métricas em Prometheus, dashboard em Grafana, alerta operacional via Telegram bot.
-
-## Status
-
-Em produção desde 2025, atendendo cliente high-ticket em imobiliário de luxo em São Paulo. Roadmap de open source de componentes não sensíveis está em discussão, com primeira liberação prevista para o final de 2026, começando pelo módulo de auditoria de tracking, que é o componente mais facilmente desacoplado do contexto específico do cliente.
-
-## Contato
-
-Para conversa técnica, csbelga em gmail ou LinkedIn em https://www.linkedin.com/in/christian-belga-a1146a75
+Contato: csbelga@gmail.com · LinkedIn
